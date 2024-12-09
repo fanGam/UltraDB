@@ -1,72 +1,68 @@
-﻿// Программа обновляет (НЕ ДОБАВЛЯЕТ) записи (Update) в таблице базы данных MS Access
-using System;
+﻿using System;
 using System.Data;
 using System.Windows.Forms;
-// Другие директивы using удалены, поскольку они не используются в данной
-// программе
-// ~ ~ ~ ~ ~ ~ ~ ~ 
-// А данную директиву добавим для краткости выражений:
 using System.Data.OleDb;
-using System.Data.SqlClient;
+
 namespace БдUpdate
 {
     public partial class Form1 : Form
     {
-        // ~ ~ ~ ~ ~ ~ ~ ~ 
-        // Объявляем эти переменные вне всех процедур, чтобы
-        // они были видны из любой из процедур:
+        // Объявление переменных для работы с базой данных и набором данных
         DataSet НаборДанных;
         OleDbDataAdapter Адаптер;
         OleDbConnection Подключение;
         OleDbCommand Команда;
+
         public Form1()
         {
-            InitializeComponent();
+            InitializeComponent(); // Инициализация компонентов формы
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
+            // Инициализация набора данных и подключения к базе данных
             НаборДанных = new DataSet();
             Подключение = new OleDbConnection(
-                    "Provider=SQLOLEDB;Data Source=ROG-ZEPHYRUS-G1\\SQLEXPRESS;Initial Catalog=RestaurantDB;Integrated Security=SSPI;");
-            //Подключение = new OleDbConnection(
-            //    "Data Source=\"database.mdb\";User " +
-            //    "ID=Admin;Provider=\"Microsoft.Jet.OLEDB.4.0\";");
-            Команда = new OleDbCommand();
+                "Provider=SQLOLEDB;Data Source=ROG-ZEPHYRUS-G1\\SQLEXPRESS;Initial Catalog=RestaurantDB;Integrated Security=SSPI;");
+
+            // Настройка текста и индексов кнопок
             button1.Text = "Читать из БД"; button1.TabIndex = 0;
             button2.Text = "Сохранить в БД";
             button3.Text = "Удалить ту строку";
         }
-        private void button1_Click(object sender, EventArgs e) // Читать из БД
-        { 
-            if (Подключение.State ==
-                            ConnectionState.Closed) Подключение.Open();
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Открытие подключения к базе данных
+            if (Подключение.State == ConnectionState.Closed) Подключение.Open();
+
+            // Очистка существующих данных в наборе данных перед загрузкой новых
             if (НаборДанных.Tables.Contains("Ингредиенты"))
             {
-                // Очищаем существующие данные в DataTable
                 НаборДанных.Tables["Ингредиенты"].Clear();
             }
-            Адаптер = new OleDbDataAdapter(
-                            "SELECT * FROM [Ингредиенты]", Подключение);
-            // Заполняем DataSet результатом SQL-запроса
+
+            // Заполнение набора данных данными из таблицы "Ингредиенты"
+            Адаптер = new OleDbDataAdapter("SELECT * FROM [Ингредиенты]", Подключение);
             Адаптер.Fill(НаборДанных, "Ингредиенты");
-            // Содержимое DataSet в виде строки XML для отладки:
-            var СтрокаXML = НаборДанных.GetXml();
-            // Указываем источник данных для сетки данных:
+
+            // Установка источника данных для DataGridView
             dataGridView1.DataSource = НаборДанных;
-            // Указываем имя таблицы в наборе данных:
             dataGridView1.DataMember = "Ингредиенты";
+
+            // Закрытие подключения
             Подключение.Close();
         }
-        private void button2_Click(object sender, EventArgs e) // Сохранить в базе данных
+
+        private void button2_Click(object sender, EventArgs e)
         {
-            // Создаем команды
+            // Подготовка команд для вставки и обновления данных в таблице "Ингредиенты"
             OleDbCommand insertCommand = new OleDbCommand(
                 "INSERT INTO [Ингредиенты] ([Название], [Единица_измерения], [Цена_закупки]) VALUES (?, ?, ?)");
             insertCommand.Parameters.Add("Название", OleDbType.VarWChar, 100, "Название");
             insertCommand.Parameters.Add("Единица_измерения", OleDbType.VarWChar, 20, "Единица_измерения");
             insertCommand.Parameters.Add("Цена_закупки", OleDbType.Decimal, 10, "Цена_закупки");
 
-            // Создаем команду для обновления
             OleDbCommand updateCommand = new OleDbCommand(
                 "UPDATE [Ингредиенты] SET [Название] = ?, [Единица_измерения] = ?, [Цена_закупки] = ? WHERE ([id_ингредиента] = ?)");
             updateCommand.Parameters.Add("Название", OleDbType.VarWChar, 100, "Название");
@@ -74,56 +70,62 @@ namespace БдUpdate
             updateCommand.Parameters.Add("Цена_закупки", OleDbType.Decimal, 10, "Цена_закупки");
             updateCommand.Parameters.Add(new OleDbParameter("orig_id_ингредиента", OleDbType.Integer, 0, ParameterDirection.Input, false, (Byte)0, (Byte)0, "id_ингредиента", System.Data.DataRowVersion.Original, null));
 
-            // Устанавливаем команды для адаптера
+            // Привязка команд к адаптеру
             Адаптер.InsertCommand = insertCommand;
             Адаптер.UpdateCommand = updateCommand;
 
-            // Устанавливаем соединение
+            // Установка соединения для команд
             insertCommand.Connection = Подключение;
             updateCommand.Connection = Подключение;
 
             try
             {
-                // Update возвращает количество измененных строк
+                // Обновление базы данных с использованием данных из набора данных
                 var kol = Адаптер.Update(НаборДанных, "Ингредиенты");
                 MessageBox.Show("Обновлено " + kol.ToString() + " записей");
             }
             catch (Exception Ситуация)
             {
+                // Обработка ошибок при обновлении
                 MessageBox.Show(Ситуация.Message, "Недоразумение");
             }
         }
+
         private void button3_Click_1(object sender, EventArgs e)
         {
+            // Проверка, выбрана ли хотя бы одна строка в DataGridView
             if (dataGridView1.SelectedRows.Count > 0)
             {
-                // Получаем индекс выбранной строки
                 int selectedIndex = dataGridView1.SelectedRows[0].Index;
 
-                // Удаляем строку из DataSet
+                // Удаление выбранной строки из набора данных
                 НаборДанных.Tables["Ингредиенты"].Rows[selectedIndex].Delete();
 
-                // Создаем команду для удаления
+                // Подготовка команды для удаления записи из базы данных
+                Команда = new OleDbCommand();
                 Команда.CommandText = "DELETE FROM [Ингредиенты] WHERE ([id_ингредиента] = ?)";
                 Команда.Parameters.Clear();
                 Команда.Parameters.Add(new OleDbParameter("id_ингредиента", OleDbType.Integer, 0, "id_ингредиента"));
 
+                // Привязка команды удаления к адаптеру
                 Адаптер.DeleteCommand = Команда;
                 Команда.Connection = Подключение;
 
                 try
                 {
-                    // Удаляем запись из базы данных
+                    // Обновление базы данных с удалением записи
                     var kol = Адаптер.Update(НаборДанных, "Ингредиенты");
                     MessageBox.Show("Удалено " + kol.ToString() + " записей");
                 }
                 catch (Exception Ситуация)
                 {
+                    // Обработка ошибок при удалении
                     MessageBox.Show(Ситуация.Message, "Недоразумение");
                 }
             }
             else
             {
+                // Уведомление пользователя о необходимости выбора записи для удаления
                 MessageBox.Show("Пожалуйста, выберите запись для удаления.");
             }
         }
